@@ -11,6 +11,7 @@ import { Button } from '@/app/ui/button';
 import { useActionState } from 'react';
 import { authenticate } from '@/app/lib/action';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
  
 export default function LoginForm() {
   const searchParams = useSearchParams();
@@ -83,6 +84,14 @@ export default function LoginForm() {
             </>
           )}
         </div>
+
+        <div className="mt-6 text-center text-sm">
+          Create an account{" "}
+          <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+            Sign up
+          </Link>
+        </div>
+
       </div>
     </form>
   );

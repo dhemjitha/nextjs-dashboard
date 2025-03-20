@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import postgres from 'postgres';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
+import { hash } from "bcrypt"
 
 const sql = postgres(process.env.DATABASE_URL!);
 
@@ -129,8 +130,6 @@ export async function deleteInvoice(id: string) {
  
 
  
-// ...
- 
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
@@ -147,5 +146,78 @@ export async function authenticate(
       }
     }
     throw error;
+  }
+}
+
+const SignUpFormSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Password confirmation is required"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  })
+
+export type SignUpState = {
+  errors?: {
+    name?: string[]
+    email?: string[]
+    password?: string[]
+    confirmPassword?: string[]
+  }
+  message?: string
+  success?: boolean
+}
+
+export async function signUp(prevState: SignUpState, formData: FormData) {
+  const validatedFields = SignUpFormSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  })
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missing Fields. Failed to sign up.",
+    }
+  }
+
+  const { name, email, password } = validatedFields.data
+
+  try {
+    const existingUser = await sql`
+      SELECT * FROM users WHERE email = ${email}
+    `
+
+    if (existingUser.length > 0) {
+      return {
+        message: "User with this email already exists",
+      }
+    }
+
+    const hashedPassword = await hash(password, 10)
+
+    const userId = crypto.randomUUID()
+
+    await sql`
+      INSERT INTO users (id, name, email, password)
+      VALUES (${userId}, ${name}, ${email}, ${hashedPassword})
+    `
+
+    return {
+      message: "User created successfully",
+      success: true
+    }
+  } catch (error) {
+    console.error("Database Error:", error)
+    return {
+      message: "Database Error: Failed to create user.",
+      success: false
+    }
   }
 }
