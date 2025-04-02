@@ -8,11 +8,17 @@ export const metadata: Metadata = {
 
 interface PageProps {
   params: { [key: string]: string | string[] };
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }> | { [key: string]: string | string[] | undefined };
 }
 
 export default async function Page({ searchParams }: PageProps) {
-  const query = typeof searchParams.query === 'string' ? searchParams.query : '';
+  // Await the searchParams if it's a Promise
+  const resolvedSearchParams = searchParams instanceof Promise ? await searchParams : searchParams;
+  
+  // Now safely access the query property
+  const queryParam = resolvedSearchParams.query;
+  const query = typeof queryParam === 'string' ? queryParam : 
+                Array.isArray(queryParam) ? queryParam[0] || '' : '';
   
   const customers = await fetchFilteredCustomers(query);
   
